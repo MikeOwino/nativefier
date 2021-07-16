@@ -1,10 +1,17 @@
-import { linkIsInternal, getCounterValue } from './helpers';
+import {
+  linkIsInternal,
+  getCounterValue,
+  removeUserAgentSpecifics,
+} from './helpers';
 
 const internalUrl = 'https://medium.com/';
 const internalUrlWww = 'https://www.medium.com/';
 const sameBaseDomainUrl = 'https://app.medium.com/';
 const internalUrlCoUk = 'https://medium.co.uk/';
+const differentBaseDomainUrlCoUk = 'https://other.domain.co.uk/';
 const sameBaseDomainUrlCoUk = 'https://app.medium.co.uk/';
+const sameBaseDomainUrlTidalListen = 'https://listen.tidal.com/';
+const sameBaseDomainUrlTidalLogin = 'https://login.tidal.com/';
 const internalUrlSubPath = 'topic/technology';
 const externalUrl = 'https://www.wikipedia.org/wiki/Electron';
 const wildcardRegex = /.*/;
@@ -47,10 +54,26 @@ test('urls on the same "base domain" should be considered internal, even with a 
   );
 });
 
+test('urls on the same "base domain" should be considered internal, even with different sub domains', () => {
+  expect(
+    linkIsInternal(
+      sameBaseDomainUrlTidalListen,
+      sameBaseDomainUrlTidalLogin,
+      undefined,
+    ),
+  ).toEqual(true);
+});
+
 test('urls on the same "base domain" should be considered internal, long SLD', () => {
   expect(
     linkIsInternal(internalUrlCoUk, sameBaseDomainUrlCoUk, undefined),
   ).toEqual(true);
+});
+
+test('urls on the a different "base domain" are considered NOT internal, long SLD', () => {
+  expect(
+    linkIsInternal(internalUrlCoUk, differentBaseDomainUrlCoUk, undefined),
+  ).toEqual(false);
 });
 
 const testLoginPages = [
@@ -69,6 +92,8 @@ const testLoginPages = [
   'https://github.com/sessions/two-factor/webauth',
   'https://accounts.google.co.uk',
   'https://accounts.google.com',
+  'https://mail.google.com/accounts/SetOSID',
+  'https://mail.google.co.uk/accounts/SetOSID',
   'https://accounts.google.de',
   'https://linkedin.co.uk/uas/login',
   'https://linkedin.com/uas/login',
@@ -76,6 +101,9 @@ const testLoginPages = [
   'https://login.live.co.uk',
   'https://login.live.com',
   'https://login.live.de',
+  'https://login.microsoftonline.com/common/oauth2/authorize',
+  'https://login.microsoftonline.co.uk/common/oauth2/authorize',
+  'https://login.microsoftonline.de/common/oauth2/authorize',
   'https://okta.co.uk',
   'https://okta.com',
   'https://subdomain.okta.com',
@@ -98,8 +126,11 @@ const testNonLoginPages = [
   'https://www.amazon.com/Node-Cookbook-techniques-server-side-development-ebook',
   'https://github.com/nativefier/nativefier',
   'https://github.com/org/nativefier',
+  'https://microsoft.com',
+  'https://office.microsoftonline.com',
   'https://twitter.com/marcoroth_/status/1325938620906287104',
   'https://appleid.apple.com/account',
+  'https://mail.google.com/',
 ];
 
 test.each(testNonLoginPages)(
@@ -123,4 +154,20 @@ test('getCounterValue should return a string for small counter numbers in the ti
 
 test('getCounterValue should return a string for large counter numbers in the title', () => {
   expect(getCounterValue(largeCounterTitle)).toEqual('8,756');
+});
+
+describe('removeUserAgentSpecifics', () => {
+  test('removes Electron and App specific info', () => {
+    const userAgentFallback =
+      'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) app-nativefier-804458/1.0.0 Chrome/89.0.4389.128 Electron/12.0.7 Safari/537.36';
+    expect(
+      removeUserAgentSpecifics(
+        userAgentFallback,
+        'app-nativefier-804458',
+        '1.0.0',
+      ),
+    ).not.toBe(
+      'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/89.0.4389.128 Safari/537.36',
+    );
+  });
 });
